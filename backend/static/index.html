@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Canadian Watch Prices – Compare Watch Models Instantly</title>
+        <meta
+            name="description"
+            content="Search and compare watch prices from Canadian retailers. Find the latest market value of any watch model instantly."
+        />
+
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css"
+        />
+        <link rel="stylesheet" href="style.css" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    </head>
+    <body>
+        <div class="page">
+            <div class="container">
+                <header>
+                    <h1>Search Watch Prices Instantly</h1>
+                    <p>Compare prices from Canadian retailers in seconds.</p>
+                </header>
+
+                <main class="content">
+                    <div class="form-wrapper">
+                        <form action="" id="watch-form">
+                            <label for="model-field">Search for a watch</label>
+                            <input
+                                type="text"
+                                name="model-field"
+                                id="model-field"
+                                autocomplete="off"
+                                autofocus
+                                maxlength="100"
+                                pattern="[a-zA-Z0-9 .\-]+"
+                            />
+                            <button id="search-btn" type="submit">
+                                Search
+                            </button>
+                            <ul id="suggestions"></ul>
+                        </form>
+                    </div>
+
+                    <div
+                        id="watchLoader"
+                        class="watch-loader"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <div class="loader-inner">
+                            <img
+                                id="loader-gif"
+                                alt="Loading watch prices..."
+                                width="100"
+                            />
+                            <span>Searching watches…</span>
+                        </div>
+                    </div>
+
+                    <section class="retailers-wrapper">
+                        <!-- Retailers list go here -->
+                    </section>
+
+                    <div class="button-wrapper">
+                        <button id="open-all">Open All Retailers</button>
+                    </div>
+                </main>
+            </div>
+
+            <footer class="cyber-footer">
+                <div class="footer-inner">
+                    <p class="footer-credit">
+                        Built by
+                        <a href="https://parsifar.com/" target="_blank"
+                            >Ali Parsifar</a
+                        >. Made with love for the watch community.
+                    </p>
+
+                    <p class="footer-disclaimer">
+                        Not affiliated with any brand or retailer. Data is for
+                        informational purposes only.
+                    </p>
+                </div>
+            </footer>
+        </div>
+        <script
+            type="text/javascript"
+            src="https://cdn.jsdelivr.net/npm/toastify-js"
+        ></script>
+        <script src="script.js"></script>
+    </body>
+</html>

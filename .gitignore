@@ -1,0 +1,41 @@
+# -----------------------
+# Python
+# -----------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+
+# Virtual environments
+venv/
+.env/
+.env.local
+
+# -----------------------
+# Playwright
+# -----------------------
+playwright/.cache/
+.ms-playwright/
+
+# -----------------------
+# OS / Editor
+# -----------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# -----------------------
+# Docker
+# -----------------------
+*.pid
+docker-compose.override.yml
+
+# -----------------------
+# Frontend build artifacts
+# (not needed now, but future-proof)
+# -----------------------
+node_modules/
+dist/
+build/

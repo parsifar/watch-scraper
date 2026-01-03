@@ -200,6 +200,13 @@ form.addEventListener('submit', function (e) {
         hideLoader();
         console.log('All price fetches are done!');
     });
+
+    // Push event to GTM
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+        event: 'watch_search',
+        search_term: searchValue,
+    });
 });
 
 // Open all links button

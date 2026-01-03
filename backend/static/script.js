@@ -1,18 +1,22 @@
 //DOM Elements
-const input = document.getElementById('model-field');
-const suggestionsBox = document.getElementById('suggestions');
-const form = document.getElementById('watch-form');
-const retailerLinks = document.querySelectorAll('.retailer-link');
-const retailersList = document.querySelector('.retailers-wrapper');
-const loader = document.getElementById('watchLoader');
-const loaderAnimatedGif = document.getElementById('loader-gif');
+const DOM = Object.freeze({
+    inputField: document.getElementById('model-field'),
+    suggestionsBox: document.getElementById('suggestions'),
+    form: document.getElementById('watch-form'),
+    retailersList: document.querySelector('.retailers-wrapper'),
+    loaderContainer: document.getElementById('watchLoader'),
+    loaderGif: document.getElementById('loader-gif'),
+    openAllBtn: document.getElementById('open-all'),
+});
+
+const state = {
+    isLoading: false,
+    models: [],
+    priceMap: {},
+    displayedRateLimitError: false,
+};
 
 const BACKEND_ENDPOINT = '/extract-price';
-
-let isLoading = false;
-let models = [];
-let priceMap = {}; // store prices here
-let displayedRateLimitError = false;
 
 const retailers = [
     { id: 'watch-it', name: 'Watch It!', url: 'https://www.watchit.ca/' },
@@ -67,27 +71,27 @@ renderRetailersList();
 fetch('models.json')
     .then((res) => res.json())
     .then((data) => {
-        models = data;
+        state.models = data;
     })
     .catch((err) => console.error('Failed to load models:', err));
 
 // Suggestion logic
-input.addEventListener('input', function () {
+DOM.inputField.addEventListener('input', function () {
     const query = this.value.trim().toLowerCase();
 
-    suggestionsBox.innerHTML = '';
+    DOM.suggestionsBox.innerHTML = '';
 
     if (query.length === 0) {
-        suggestionsBox.style.display = 'none';
+        DOM.suggestionsBox.style.display = 'none';
         return;
     }
 
-    const filtered = models.filter((model) =>
+    const filtered = state.models.filter((model) =>
         model.toLowerCase().includes(query)
     );
 
     if (filtered.length === 0) {
-        suggestionsBox.style.display = 'none';
+        DOM.suggestionsBox.style.display = 'none';
         return;
     }
 
@@ -95,29 +99,29 @@ input.addEventListener('input', function () {
         const li = document.createElement('li');
         li.textContent = model;
         li.addEventListener('click', () => {
-            input.value = model;
-            suggestionsBox.style.display = 'none';
-            form.dispatchEvent(new Event('submit')); // submit the form
+            DOM.inputField.value = model;
+            DOM.suggestionsBox.style.display = 'none';
+            DOM.form.dispatchEvent(new Event('submit')); // submit the form
         });
-        suggestionsBox.appendChild(li);
+        DOM.suggestionsBox.appendChild(li);
     });
 
-    suggestionsBox.style.display = 'block';
+    DOM.suggestionsBox.style.display = 'block';
 });
 
 // Hide suggestions when clicking outside
 document.addEventListener('click', (e) => {
-    if (!form.contains(e.target)) {
-        suggestionsBox.style.display = 'none';
+    if (!DOM.form.contains(e.target)) {
+        DOM.suggestionsBox.style.display = 'none';
     }
 });
 
 // Form submit handler
-form.addEventListener('submit', function (e) {
+DOM.form.addEventListener('submit', function (e) {
     e.preventDefault();
 
     // Prevent submission if a search is already in progress
-    if (isLoading) {
+    if (state.isLoading) {
         Toastify({
             text: 'Search in progress. Please wait...',
             className: 'info',
@@ -125,7 +129,7 @@ form.addEventListener('submit', function (e) {
         return; // exit early
     }
 
-    const searchTerm = input.value.trim();
+    const searchTerm = DOM.inputField.value.trim();
     if (!searchTerm) return;
 
     //reset UI
@@ -158,15 +162,18 @@ form.addEventListener('submit', function (e) {
                 if (!res.ok) {
                     if (res.status === 404) {
                         retailerLink.textContent = 'No in-stock results';
-                    } else if (res.status === 429 && !displayedRateLimitError) {
+                    } else if (
+                        res.status === 429 &&
+                        !state.displayedRateLimitError
+                    ) {
                         Toastify({
                             text: 'Too many requests! Please wait 1 minute before trying again.',
                             className: 'error',
                             duration: 10000,
                         }).showToast();
-                        displayedRateLimitError = true;
+                        state.displayedRateLimitError = true;
                         setTimeout(
-                            () => (displayedRateLimitError = false),
+                            () => (state.displayedRateLimitError = false),
                             60000
                         );
                     }
@@ -179,11 +186,11 @@ form.addEventListener('submit', function (e) {
                 console.log(data);
 
                 if (data && data.starting_from != null) {
-                    priceMap[id] = data.starting_from;
+                    state.priceMap[id] = data.starting_from;
                     retailerLink.textContent = 'From $' + data.starting_from;
                     retailerLink.style.color = '#00ffff';
                 } else {
-                    priceMap[id] = null; // mark as failed
+                    state.priceMap[id] = null; // mark as failed
                 }
 
                 updateListOrder();
@@ -210,7 +217,7 @@ form.addEventListener('submit', function (e) {
 });
 
 // Open all links button
-document.getElementById('open-all').addEventListener('click', () => {
+DOM.openAllBtn.addEventListener('click', () => {
     const links = document.querySelectorAll('.retailer-link');
     links.forEach((link, index) => {
         const url = link.href;
@@ -226,15 +233,15 @@ document.getElementById('open-all').addEventListener('click', () => {
 // Functions
 
 function showLoader() {
-    if (isLoading) return;
-    isLoading = true;
-    loaderAnimatedGif.src = './images/watch-loader.gif';
-    loader.classList.add('active');
+    if (state.isLoading) return;
+    state.isLoading = true;
+    DOM.loaderGif.src = './images/watch-loader.gif';
+    DOM.loaderContainer.classList.add('active');
 }
 
 function hideLoader() {
-    isLoading = false;
-    loader.classList.remove('active');
+    state.isLoading = false;
+    DOM.loaderContainer.classList.remove('active');
 }
 function getRetailerSearchUrls(searchTerm) {
     return {
@@ -275,13 +282,13 @@ function getRetailerSearchUrls(searchTerm) {
 }
 
 function resetRetailersList() {
-    priceMap = {};
+    state.priceMap = {};
     renderRetailersList();
 }
 function renderRetailersList() {
-    retailersList.innerHTML = '';
+    DOM.retailersList.innerHTML = '';
     retailers.forEach((retailer) => {
-        retailersList.innerHTML += retialerCardMarkup(retailer);
+        DOM.retailersList.innerHTML += retialerCardMarkup(retailer);
     });
 }
 
@@ -301,7 +308,7 @@ function retialerCardMarkup(retailer) {
 }
 
 function updateListOrder() {
-    const retailerItems = Array.from(retailersList.children);
+    const retailerItems = Array.from(DOM.retailersList.children);
 
     // Record current positions
     const positions = new Map();
@@ -311,8 +318,8 @@ function updateListOrder() {
 
     // Sort items: items with valid prices first, ascending, then items without prices
     const sortedRetailerItems = retailerItems.sort((a, b) => {
-        const priceA = priceMap[a.dataset.id];
-        const priceB = priceMap[b.dataset.id];
+        const priceA = state.priceMap[a.dataset.id];
+        const priceB = state.priceMap[b.dataset.id];
 
         if (priceA == null && priceB == null) return 0;
         if (priceA == null) return 1; // push empty to end
@@ -321,7 +328,7 @@ function updateListOrder() {
     });
 
     // Reorder in DOM
-    sortedRetailerItems.forEach((item) => retailersList.appendChild(item));
+    sortedRetailerItems.forEach((item) => DOM.retailersList.appendChild(item));
 
     // Apply FLIP animation
     sortedRetailerItems.forEach((item) => {

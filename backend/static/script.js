@@ -204,7 +204,7 @@ form.addEventListener('submit', function (e) {
         window.dataLayer = window.dataLayer || [];
         window.dataLayer.push({
             event: 'watch_search',
-            search_term: searchValue,
+            search_term: searchTerm,
         });
     });
 });

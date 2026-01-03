@@ -33,7 +33,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN playwright install --with-deps
 
 # Copy backend code + frontend static files
-COPY backend/ .
+COPY backend/ backend/
 
 # Expose FastAPI port
 EXPOSE 8000

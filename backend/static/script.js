@@ -19,48 +19,92 @@ const state = {
 const BACKEND_ENDPOINT = '/extract-price';
 
 const retailers = [
-    { id: 'watch-it', name: 'Watch It!', url: 'https://www.watchit.ca/' },
-    { id: 'watchory', name: 'Watchory', url: 'https://watchory.ca/' },
+    {
+        id: 'watch-it',
+        name: 'Watch It!',
+        url: 'https://www.watchit.ca/',
+        buildSearchUrl: (term) =>
+            `https://www.watchit.ca/pages/search-results-page?q=${encodeURIComponent(
+                term
+            )}`,
+    },
+    {
+        id: 'watchory',
+        name: 'Watchory',
+        url: 'https://watchory.ca/',
+        buildSearchUrl: (term) =>
+            `https://watchory.ca/search?q=${encodeURIComponent(term)}`,
+    },
     {
         id: 'big-time-watches',
         name: 'Big Time Watches',
         url: 'https://bigtimewatches.com/',
+        buildSearchUrl: (term) =>
+            `https://bigtimewatches.com/search?q=${encodeURIComponent(term)}`,
     },
     {
         id: 'city-watches',
         name: 'City Watches',
         url: 'https://www.citywatches.ca/',
+        buildSearchUrl: (term) =>
+            `https://www.citywatches.ca/search?q=${encodeURIComponent(term)}`,
     },
-    { id: 'ebay', name: 'eBay', url: 'https://www.ebay.ca/' },
+    {
+        id: 'ebay',
+        name: 'eBay',
+        url: 'https://www.ebay.ca/',
+        buildSearchUrl: (term) =>
+            `https://www.ebay.ca/sch/i.html?_nkw=${encodeURIComponent(term)}`,
+    },
     {
         id: 'bijoux-eclore',
         name: 'Bijoux Eclore',
         url: 'https://www.bijouxeclore.com/',
+        buildSearchUrl: (term) =>
+            `https://www.bijouxeclore.com/search?q=${encodeURIComponent(
+                term
+            )}&options%5Bprefix%5D=last&type=product`,
     },
     {
         id: 'kavar-jewellers',
         name: 'Kavar Jewellers',
         url: 'https://www.kavarjewellers.ca/',
+        buildSearchUrl: (term) =>
+            `https://www.kavarjewellers.ca/collections/search%3Fkeyword%3D${encodeURIComponent(
+                term
+            )}`,
     },
     {
         id: 'peoples-jewellers',
         name: 'Peoples Jewellers',
         url: 'https://www.peoplesjewellers.com/',
+        buildSearchUrl: (term) =>
+            `https://www.peoplesjewellers.com/search?text=${encodeURIComponent(
+                term
+            )}`,
     },
     {
         id: 'creation-watches',
         name: 'Creation Watches',
         url: 'https://www.creationwatches.com/',
+        buildSearchUrl: (term) =>
+            `https://www.creationwatches.com/products/search?keyword=${encodeURIComponent(
+                term
+            )}`,
     },
     {
         id: 'canada-watch-house',
         name: 'Canada Watch House',
         url: 'https://canadawatchhouse.ca/',
+        buildSearchUrl: (term) =>
+            `https://canadawatchhouse.ca/search?q=${encodeURIComponent(term)}`,
     },
     {
         id: 'assaleh',
         name: 'Assaleh',
         url: 'https://assaleh.ca/',
+        buildSearchUrl: (term) =>
+            `https://assaleh.ca/search?q=${encodeURIComponent(term)}`,
     },
 ];
 
@@ -136,24 +180,23 @@ DOM.form.addEventListener('submit', function (e) {
     resetRetailersList();
     showLoader();
 
-    // Map of retailer IDs to search URL patterns
-    const retailerSearchURLs = getRetailerSearchUrls(searchTerm);
-
-    // Get prices from the backend
+    // an array of all fetch requests to the backend
     const fetchPromises = [];
 
-    for (const id in retailerSearchURLs) {
-        const retailerLink = document.getElementById(id);
+    retailers.forEach((retailer) => {
+        const retailerLinkEl = document.getElementById(retailer.id);
 
-        if (!retailerLink) continue;
-        retailerLink.href = retailerSearchURLs[id];
+        if (!retailerLinkEl) return;
+
+        const searchUrl = retailer.buildSearchUrl(searchTerm);
+        retailerLinkEl.href = searchUrl;
 
         // Fetch prices from the backend
         const fetchPromise = fetch(BACKEND_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                url: retailerSearchURLs[id],
+                url: searchUrl,
                 term: searchTerm,
             }),
         })
@@ -161,7 +204,7 @@ DOM.form.addEventListener('submit', function (e) {
                 //If scraper returns empty list
                 if (!res.ok) {
                     if (res.status === 404) {
-                        retailerLink.textContent = 'No in-stock results';
+                        retailerLinkEl.textContent = 'No in-stock results';
                     } else if (
                         res.status === 429 &&
                         !state.displayedRateLimitError
@@ -171,7 +214,9 @@ DOM.form.addEventListener('submit', function (e) {
                             className: 'error',
                             duration: 10000,
                         }).showToast();
+
                         state.displayedRateLimitError = true;
+
                         setTimeout(
                             () => (state.displayedRateLimitError = false),
                             60000
@@ -185,22 +230,22 @@ DOM.form.addEventListener('submit', function (e) {
             .then((data) => {
                 console.log(data);
 
-                if (data && data.starting_from != null) {
-                    state.priceMap[id] = data.starting_from;
-                    retailerLink.textContent = 'From $' + data.starting_from;
-                    retailerLink.style.color = '#00ffff';
+                if (typeof data?.starting_from === 'number') {
+                    state.priceMap[retailer.id] = data.starting_from;
+                    retailerLinkEl.textContent = 'From $' + data.starting_from;
+                    retailerLinkEl.style.color = '#00ffff';
                 } else {
-                    state.priceMap[id] = null; // mark as failed
+                    state.priceMap[retailer.id] = null; // mark as failed
                 }
 
                 updateListOrder();
             })
             .catch((err) => {
-                console.error('Fetch error for', id, err);
+                console.error('Fetch error for', retailer.id, err);
             });
 
         fetchPromises.push(fetchPromise);
-    }
+    });
 
     // Wait for all fetches to complete (success or fail)
     Promise.allSettled(fetchPromises).then(() => {
@@ -242,43 +287,6 @@ function showLoader() {
 function hideLoader() {
     state.isLoading = false;
     DOM.loaderContainer.classList.remove('active');
-}
-function getRetailerSearchUrls(searchTerm) {
-    return {
-        'watch-it': `https://www.watchit.ca/pages/search-results-page?q=${encodeURIComponent(
-            searchTerm
-        )}`,
-        watchory: `https://watchory.ca/search?q=${encodeURIComponent(
-            searchTerm
-        )}`,
-        'big-time-watches': `https://bigtimewatches.com/search?q=${encodeURIComponent(
-            searchTerm
-        )}`,
-        'city-watches': `https://www.citywatches.ca/search?q=${encodeURIComponent(
-            searchTerm
-        )}`,
-        ebay: `https://www.ebay.ca/sch/i.html?_nkw=${encodeURIComponent(
-            searchTerm
-        )}`,
-        'bijoux-eclore': `https://www.bijouxeclore.com/search?q=${encodeURIComponent(
-            searchTerm
-        )}&options%5Bprefix%5D=last&type=product`,
-        'kavar-jewellers': `https://www.kavarjewellers.ca/collections/search%3Fkeyword%3D${encodeURIComponent(
-            searchTerm
-        )}`,
-        'peoples-jewellers': `https://www.peoplesjewellers.com/search?text=${encodeURIComponent(
-            searchTerm
-        )}`,
-        'creation-watches': `https://www.creationwatches.com/products/search?keyword=${encodeURIComponent(
-            searchTerm
-        )}`,
-        'canada-watch-house': `https://canadawatchhouse.ca/search?q=${encodeURIComponent(
-            searchTerm
-        )}`,
-        assaleh: `https://assaleh.ca/search?q=${encodeURIComponent(
-            searchTerm
-        )}`,
-    };
 }
 
 function resetRetailersList() {

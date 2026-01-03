@@ -7,8 +7,20 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel, HttpUrl, constr
 from urllib.parse import urlparse
-from scrapers import DOMAIN_SCRAPER
-from relevance import filter_results
+from backend.scrapers import DOMAIN_SCRAPER
+from backend.relevance import filter_results
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+
+# read the env variables from the .env file and add them to the current OS environment variables to be read by os.getenv
+load_dotenv()
+
+ENV = os.getenv(key="ENV", default="development")
+RATE_LIMIT_PER_MINUTE = os.getenv(key="RATE_LIMIT_PER_MINUTE", default=11)
+
 
 ALLOWED_DOMAINS = set(DOMAIN_SCRAPER.keys())
 
@@ -16,19 +28,6 @@ ALLOWED_DOMAINS = set(DOMAIN_SCRAPER.keys())
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Retailer Price Scraper")
 app.state.limiter = limiter
-
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-    ],
-    allow_credentials=True,
-    allow_methods=["POST"],
-    allow_headers=["Content-Type"],
-)
 
 
 class SearchRequest(BaseModel):
@@ -50,7 +49,8 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 
 
 @app.post("/extract-price")
-@limiter.limit("33/minute")  # 3 searches * 11 retailers per minute
+# 3 searches * 11 retailers per minute
+@limiter.limit(RATE_LIMIT_PER_MINUTE+"/minute")
 async def search_products(request: Request):
     body = await request.json()
     search_req = SearchRequest(**body)
@@ -108,4 +108,5 @@ async def search_products(request: Request):
         return {"all_products":  products, "starting_from": min_product["price"]}
 
 # Serve frontend last
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount("/", StaticFiles(directory=BASE_DIR /
+          "static", html=True), name="static")

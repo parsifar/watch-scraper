@@ -90,6 +90,7 @@ http://localhost:8000
 1- Build Docker image on the server
 
 ```bash
+cd ~/apps/watch-scraper
 docker build -t watch-scraper .
 ```
 
@@ -98,6 +99,13 @@ docker build -t watch-scraper .
 ```bash
 docker run -d --name watch-scraper \
   -p 8000:8000 \
-  --env-file /home/ubuntu/apps/watch-scraper/.env \
+  --env-file /home/ubuntu/apps/watch-scraper/.env.production \
+  --restart unless-stopped \
   watch-scraper
+```
+
+3- Check logs to make sure it started correctly
+
+```bash
+docker logs -f watch-scraper
 ```

@@ -199,13 +199,13 @@ form.addEventListener('submit', function (e) {
     Promise.allSettled(fetchPromises).then(() => {
         hideLoader();
         console.log('All price fetches are done!');
-    });
 
-    // Push event to GTM
-    window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({
-        event: 'watch_search',
-        search_term: searchValue,
+        // Push event to GTM
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+            event: 'watch_search',
+            search_term: searchValue,
+        });
     });
 });
 

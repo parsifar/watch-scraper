@@ -161,103 +161,42 @@ document.addEventListener('click', (e) => {
 });
 
 // Form submit handler
-DOM.form.addEventListener('submit', function (e) {
+DOM.form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Prevent submission if a search is already in progress
     if (state.isLoading) {
         Toastify({
-            text: 'Search in progress. Please wait...',
+            text: 'Search in progress...',
             className: 'info',
         }).showToast();
-        return; // exit early
+        return;
     }
 
     const searchTerm = DOM.inputField.value.trim();
     if (!searchTerm) return;
 
-    //reset UI
     resetRetailersList();
     showLoader();
 
-    // an array of all fetch requests to the backend
-    const fetchPromises = [];
-
-    retailers.forEach((retailer) => {
+    const fetchPromises = retailers.map((retailer) => {
         const retailerLinkEl = document.getElementById(retailer.id);
+        if (!retailerLinkEl) return Promise.resolve();
 
-        if (!retailerLinkEl) return;
-
-        const searchUrl = retailer.buildSearchUrl(searchTerm);
-        retailerLinkEl.href = searchUrl;
-
-        // Fetch prices from the backend
-        const fetchPromise = fetch(BACKEND_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                url: searchUrl,
-                term: searchTerm,
-            }),
-        })
-            .then((res) => {
-                //If scraper returns empty list
-                if (!res.ok) {
-                    if (res.status === 404) {
-                        retailerLinkEl.textContent = 'No in-stock results';
-                    } else if (
-                        res.status === 429 &&
-                        !state.displayedRateLimitError
-                    ) {
-                        Toastify({
-                            text: 'Too many requests! Please wait 1 minute before trying again.',
-                            className: 'error',
-                            duration: 10000,
-                        }).showToast();
-
-                        state.displayedRateLimitError = true;
-
-                        setTimeout(
-                            () => (state.displayedRateLimitError = false),
-                            60000
-                        );
-                    }
-
-                    return null;
-                }
-                return res.json();
-            })
-            .then((data) => {
-                console.log(data);
-
-                if (typeof data?.starting_from === 'number') {
-                    state.priceMap[retailer.id] = data.starting_from;
-                    retailerLinkEl.textContent = 'From $' + data.starting_from;
-                    retailerLinkEl.style.color = '#00ffff';
-                } else {
-                    state.priceMap[retailer.id] = null; // mark as failed
-                }
-
-                updateListOrder();
-            })
-            .catch((err) => {
-                console.error('Fetch error for', retailer.id, err);
-            });
-
-        fetchPromises.push(fetchPromise);
+        return fetchRetailerPrice({
+            retailer,
+            searchTerm,
+            retailerLinkEl,
+        });
     });
 
-    // Wait for all fetches to complete (success or fail)
-    Promise.allSettled(fetchPromises).then(() => {
-        hideLoader();
-        console.log('All price fetches are done!');
+    await Promise.allSettled(fetchPromises);
 
-        // Push event to GTM
-        window.dataLayer = window.dataLayer || [];
-        window.dataLayer.push({
-            event: 'watch_search',
-            search_term: searchTerm,
-        });
+    hideLoader();
+
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+        event: 'watch_search',
+        search_term: searchTerm,
     });
 });
 
@@ -276,6 +215,61 @@ DOM.openAllBtn.addEventListener('click', () => {
 });
 
 // Functions
+
+async function fetchRetailerPrice({ retailer, searchTerm, retailerLinkEl }) {
+    const searchUrl = retailer.buildSearchUrl(searchTerm);
+    retailerLinkEl.href = searchUrl;
+
+    try {
+        const res = await fetch(BACKEND_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: searchUrl,
+                term: searchTerm,
+            }),
+        });
+
+        if (!res.ok) {
+            handleFetchError(res, retailerLinkEl);
+            state.priceMap[retailer.id] = null;
+            return;
+        }
+
+        const data = await res.json();
+
+        if (typeof data?.starting_from === 'number') {
+            state.priceMap[retailer.id] = data.starting_from;
+            retailerLinkEl.textContent = `From $${data.starting_from}`;
+            retailerLinkEl.style.color = '#00ffff';
+        } else {
+            state.priceMap[retailer.id] = null;
+        }
+    } catch (err) {
+        console.error('Fetch error for', retailer.id, err);
+        state.priceMap[retailer.id] = null;
+    }
+
+    updateListOrder();
+}
+
+function handleFetchError(res, retailerLinkEl) {
+    if (res.status === 404) {
+        retailerLinkEl.textContent = 'No in-stock results';
+        return;
+    }
+
+    if (res.status === 429 && !state.displayedRateLimitError) {
+        Toastify({
+            text: 'Too many requests! Please wait 1 minute before trying again.',
+            className: 'error',
+            duration: 10000,
+        }).showToast();
+
+        state.displayedRateLimitError = true;
+        setTimeout(() => (state.displayedRateLimitError = false), 60000);
+    }
+}
 
 function showLoader() {
     if (state.isLoading) return;

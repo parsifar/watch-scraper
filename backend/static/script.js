@@ -224,39 +224,42 @@ function retialerCardMarkup(retailer) {
 function updateListOrder() {
     const retailerItems = Array.from(DOM.retailersList.children);
 
-    // Record current positions
-    const positions = new Map();
-    retailerItems.forEach((item) => {
-        positions.set(item, item.getBoundingClientRect().top);
-    });
-
-    // Sort items: items with valid prices first, ascending, then items without prices
-    const sortedRetailerItems = retailerItems.sort((a, b) => {
+    // Sort items by price: ascending, nulls last
+    const sortedItems = retailerItems.slice().sort((a, b) => {
         const priceA = state.priceMap[a.dataset.id];
         const priceB = state.priceMap[b.dataset.id];
 
         if (priceA == null && priceB == null) return 0;
-        if (priceA == null) return 1; // push empty to end
+        if (priceA == null) return 1;
         if (priceB == null) return -1;
         return priceA - priceB;
     });
 
-    // Reorder in DOM
-    sortedRetailerItems.forEach((item) => DOM.retailersList.appendChild(item));
+    // Record current positions
+    const oldPositions = new Map();
+    retailerItems.forEach((item) =>
+        oldPositions.set(item, item.getBoundingClientRect().top)
+    );
 
-    // Apply FLIP animation
-    sortedRetailerItems.forEach((item) => {
-        const oldTop = positions.get(item);
+    // Reorder DOM first
+    sortedItems.forEach((item) => DOM.retailersList.appendChild(item));
+
+    // Apply FLIP transform
+    sortedItems.forEach((item) => {
+        const oldTop = oldPositions.get(item);
         const newTop = item.getBoundingClientRect().top;
         const delta = oldTop - newTop;
 
-        item.style.transform = `translateY(${delta}px)`;
-        item.style.transition = 'transform 0s';
+        if (delta) {
+            // only transform if changed
+            item.style.transform = `translateY(${delta}px)`;
+            item.style.transition = 'transform 0s';
+        }
     });
 
-    // Force reflow and animate
+    // Animate to final position
     requestAnimationFrame(() => {
-        sortedRetailerItems.forEach((item) => {
+        sortedItems.forEach((item) => {
             item.style.transition = 'transform 0.3s ease';
             item.style.transform = '';
         });

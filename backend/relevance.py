@@ -108,26 +108,26 @@ def extract_model_tokens(text: str) -> Set[str]:
 
 def base_model(token: str) -> str:
     """
-    Extract the base model (family) from a model token.
+    Extract the base model for comparison.
 
-    Examples:
-    - ga700bce -> ga700
-    - ga700wd  -> ga700
-    - snxs77k1 -> snxs77
-    - ga2100   -> ga2100
-
-    This allows variant matching without false mismatches.
+    Logic:
+    - Take starting letters
+    - Take first numeric sequence
+    - Ignore extra suffix letters/digits
     """
     letters = []
     digits = []
+    found_digit = False
 
     for c in token:
-        if c.isalpha() and not digits:
+        if c.isalpha() and not found_digit:
             letters.append(c)
         elif c.isdigit():
             digits.append(c)
-        elif digits:
-            break  # stop once suffix starts
+            found_digit = True
+        elif found_digit:
+            # stop at first non-digit after numeric sequence
+            break
 
     return "".join(letters + digits)
 
@@ -176,7 +176,7 @@ def accessory_penalty(text: str) -> int:
     """
     tokens = set(tokenize(normalize(text)))
     if tokens & ACCESSORY_KEYWORDS:
-        return -10
+        return -15
     return 0
 
 

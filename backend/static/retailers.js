@@ -86,4 +86,13 @@ export const retailers = [
         buildSearchUrl: (term) =>
             `https://assaleh.ca/search?q=${encodeURIComponent(term)}`,
     },
+    {
+        id: 'gem-bijou',
+        name: 'Gem Bijou',
+        url: 'https://gembijou.com/',
+        buildSearchUrl: (term) =>
+            `https://gembijou.com/search?q=${encodeURIComponent(
+                term
+            )}&options%5Bprefix%5D=last`,
+    },
 ];

@@ -1,84 +1,321 @@
 import re
+from typing import List, Set
 
+
+# ============================================================
+# Configuration
+# ============================================================
+
+# Keywords that strongly indicate accessories, not watches
+ACCESSORY_KEYWORDS = {
+    "strap", "band", "bracelet", "replacement", "rubber",
+    "leather", "silicone", "nylon", "nato", "link", "links",
+    "buckle", "clasp"
+}
+
+# Generic words that should not heavily influence relevance
+STOPWORDS = {
+    "watch", "watches", "mens", "men", "women", "ladies",
+    "automatic", "quartz", "digital", "analog",
+    "black", "silver", "gold", "steel", "stainless"
+}
+
+# Define feature keywords
+FEATURE_KEYWORDS = {
+    "solar", "eco", "eco-drive", "kinetic",
+    "automatic", "mechanical", "quartz",
+    "titanium", "diver", "chronograph"
+}
+
+
+# ============================================================
+# Normalization & Tokenization
+# ============================================================
 
 def normalize(text: str) -> str:
-    """Lowercase, remove punctuation, normalize spaces"""
+    """
+    Normalize text for comparison:
+    - lowercase
+    - remove punctuation
+    - normalize whitespace
+    """
     text = text.lower()
-    text = re.sub(r'[^a-z0-9 ]', ' ', text)
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r"[^a-z0-9 ]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
     return text
 
 
-def tokenize(text: str) -> list[str]:
-    """Split into simple tokens"""
+def tokenize(text: str) -> List[str]:
+    """
+    Split normalized text into tokens.
+    """
     return text.split()
 
 
+# ============================================================
+# Model Token Extraction
+# ============================================================
+
 def is_model_token(token: str) -> bool:
-    """Detect “model-like” tokens (has letters and numbers)"""
-    return any(c.isalpha() for c in token) and any(c.isdigit() for c in token)
-
-
-def extract_model_tokens(text: str) -> set[str]:
     """
-    Extract model tokens.
-    Handles both 'GA2100' and 'GA 2100' style tokens.
+    Determine whether a token looks like a watch model code.
+
+    Requires:
+    - at least 2 letters
+    - at least 2 digits
+
+    This avoids false positives like:
+    - 200m
+    - wr100
+    - iso6425
+    """
+    letters = sum(c.isalpha() for c in token)
+    digits = sum(c.isdigit() for c in token)
+    return letters >= 2 and digits >= 2
+
+
+def extract_model_tokens(text: str) -> Set[str]:
+    """
+    Extract model-like tokens from text.
+
+    Handles:
+    - GA700
+    - GA 700
+    - SNXS77K1
     """
     tokens = tokenize(normalize(text))
     combined = []
-    skip_next = False
+    skip = False
 
     for i, t in enumerate(tokens):
-        if skip_next:
-            skip_next = False
+        if skip:
+            skip = False
             continue
 
-        # Combine letter token + next numeric token (e.g., "ga" + "2100" → "ga2100")
+        # Combine letter token + numeric token (e.g. "ga" + "700")
         if t.isalpha() and i + 1 < len(tokens) and tokens[i + 1].isdigit():
             combined.append(t + tokens[i + 1])
-            skip_next = True
+            skip = True
         else:
             combined.append(t)
 
-    # Keep only tokens that look like models
     return {t for t in combined if is_model_token(t)}
 
 
-def numeric_part(token: str) -> str:
-    """Extract numeric part of token"""
-    return ''.join(c for c in token if c.isdigit())
+# ============================================================
+# Base Model Logic (CRITICAL FIX)
+# ============================================================
 
+def base_model(token: str) -> str:
+    """
+    Extract the base model for comparison.
+
+    Logic:
+    - Take starting letters
+    - Take first numeric sequence
+    - Ignore extra suffix letters/digits
+    """
+    letters = []
+    digits = []
+    found_digit = False
+
+    for c in token:
+        if c.isalpha() and not found_digit:
+            letters.append(c)
+        elif c.isdigit():
+            digits.append(c)
+            found_digit = True
+        elif found_digit:
+            # stop at first non-digit after numeric sequence
+            break
+
+    return "".join(letters + digits)
+
+
+# ============================================================
+# Series / Line Query Detection
+# ============================================================
+
+def is_series_query(query: str) -> bool:
+    """
+    Detect searches like:
+    - "seiko 5"
+    - "tissot prx"
+    - "citizen eco drive"
+
+    Characteristics:
+    - no explicit model tokens
+    - presence of digits or short series words
+    """
+    q_models = extract_model_tokens(query)
+    q_tokens = tokenize(normalize(query))
+
+    return (
+        not q_models
+        and any(token.isdigit() for token in q_tokens)
+    )
+
+# ============================================================
+# Feature Query Detection
+# ============================================================
+
+
+def is_feature_query(query: str) -> bool:
+    tokens = set(tokenize(normalize(query)))
+    return bool(tokens & FEATURE_KEYWORDS)
+
+# ============================================================
+# Accessory Detection
+# ============================================================
+
+
+def accessory_penalty(text: str) -> int:
+    """
+    Apply a strong negative penalty if listing appears
+    to be an accessory (strap, band, etc.).
+    """
+    tokens = set(tokenize(normalize(text)))
+    if tokens & ACCESSORY_KEYWORDS:
+        return -15
+    return 0
+
+
+# ============================================================
+# Relevance Scoring
+# ============================================================
 
 def relevance_score(query: str, product_name: str) -> float:
-    """Compute relevance between query and product"""
-    q_models = extract_model_tokens(query)
-    p_models = extract_model_tokens(product_name)
-
+    """
+    Compute relevance score between a search query
+    and a scraped product title.
+    """
     score = 0.0
 
-    # 1. Strong numeric model match
+    q_norm = normalize(query)
+    p_norm = normalize(product_name)
+
+    q_tokens = set(tokenize(q_norm)) - STOPWORDS
+    p_tokens = set(tokenize(p_norm)) - STOPWORDS
+
+    q_models = extract_model_tokens(q_norm)
+    p_models = extract_model_tokens(p_norm)
+
+    series_query = is_series_query(query)
+
+    # --------------------------------------------------------
+    # 1. Exact model token match (strongest signal)
+    # --------------------------------------------------------
+    exact_matches = q_models & p_models
+    score += len(exact_matches) * 8
+
+    # --------------------------------------------------------
+    # 2. Base model (family) match (variant support)
+    # --------------------------------------------------------
     for qm in q_models:
-        q_num = numeric_part(qm)
         for pm in p_models:
-            if q_num and q_num == numeric_part(pm):
-                score += 5
+            if base_model(qm) == base_model(pm):
+                score += 6
 
-    # 2. Partial token overlap
-    q_tokens = set(tokenize(normalize(query)))
-    p_tokens = set(tokenize(normalize(product_name)))
-    score += len(q_tokens & p_tokens)
+    # --------------------------------------------------------
+    # 3. Wrong model family penalty (ONLY if model was specified)
+    # --------------------------------------------------------
+    if q_models and p_models and not series_query:
+        if not any(
+            base_model(qm) == base_model(pm)
+            for qm in q_models
+            for pm in p_models
+        ):
+            score -= 4
 
-    # 3. Penalize wrong model numbers
-    if p_models and q_models and score == 0:
-        score -= 5
+    # --------------------------------------------------------
+    # 4. Token overlap (weak signal)
+    # --------------------------------------------------------
+    score += len(q_tokens & p_tokens) * 0.5
+
+    # --------------------------------------------------------
+    # 5. Series phrase boost (e.g. "seiko 5")
+    # --------------------------------------------------------
+    if series_query:
+        if q_norm in p_norm:
+            score += 4
+
+    # --------------------------------------------------------
+    # 6. Feature phrase boost (e.g. "seiko 5")
+    # --------------------------------------------------------
+    feature_tokens = q_tokens & FEATURE_KEYWORDS
+    if feature_tokens:
+        score += len(feature_tokens & p_tokens) * 3
+
+    # --------------------------------------------------------
+    # 7. Accessory penalty
+    # --------------------------------------------------------
+    score += accessory_penalty(product_name)
 
     return score
 
 
-def filter_results(query, results, threshold=3):
+# ============================================================
+# Dynamic Thresholding
+# ============================================================
+
+def recommended_threshold(query: str) -> float:
+    """
+    Choose a relevance threshold based on the user's search intent.
+
+    Intent types:
+    1) Exact / family model search   -> high threshold
+       e.g. "ga700", "snxs77"
+
+    2) Series / line search          -> medium threshold
+       e.g. "seiko 5", "tissot prx"
+
+    3) Feature-based search          -> low threshold
+       e.g. "casio solar", "titanium diver"
+
+    4) Generic brand search          -> low threshold
+       e.g. "casio watches"
+    """
+
+    normalized = normalize(query)
+    tokens = set(tokenize(normalized))
+    models = extract_model_tokens(normalized)
+
+    # Feature intent (solar, automatic, diver, etc.)
+    feature_intent = bool(tokens & FEATURE_KEYWORDS)
+
+    # Series / line intent (numeric but no explicit model)
+    series_intent = is_series_query(query)
+
+    if models:
+        # User typed a specific model or model family
+        return 4.0
+
+    if series_intent:
+        # Brand + line (e.g. "seiko 5")
+        return 2.5
+
+    if feature_intent:
+        # Feature-based discovery search
+        return 1.5
+
+    # Generic brand/category search
+    return 2.0
+
+
+# ============================================================
+# Result Filtering
+# ============================================================
+
+def filter_results(query, results):
+    """
+    Score, filter, and sort scraped results.
+    """
+    threshold = recommended_threshold(query)
     scored = []
+
     for r in results:
         s = relevance_score(query, r["name"])
         if s >= threshold:
-            scored.append({**r, "score": s})
+            scored.append({**r, "score": round(s, 2)})
+
     return sorted(scored, key=lambda x: x["score"], reverse=True)

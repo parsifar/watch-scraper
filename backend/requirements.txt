@@ -5,3 +5,4 @@ beautifulsoup4>=4.12.2
 slowapi>=0.1.9
 pydantic>=2.12.5
 python-dotenv>=1.2.1
+requests>=2.31.0

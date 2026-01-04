@@ -4,7 +4,7 @@ from .base_scraper import BaseScraper
 from .utils import normalize_price
 
 
-class EbayScraper(BaseScraper):
+class EbayHttpScraper(BaseScraper):
     async def scrape(self, url: str, term: str) -> list[dict]:
         """
         Scrape eBay search results via direct HTTP requests (no browser).

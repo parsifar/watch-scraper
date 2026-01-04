@@ -2,7 +2,7 @@ from .watchit import WatchItScraper
 from .watchory import WatchoryScraper
 from .bigtimewatches import BigTimeScraper
 from .citywatches import CityWatchesScraper
-from .ebay import EbayScraper
+from .ebay import EbayHttpScraper
 from .bijouxeclore import BijouxEcloreScraper
 from .kavarjewellers import KavarJewellersScraper
 from .peoplesjewellers import PeoplesJewellersScraper
@@ -15,7 +15,7 @@ DOMAIN_SCRAPER = {
     "watchory.ca": WatchoryScraper,
     "bigtimewatches.com": BigTimeScraper,
     "citywatches.ca": CityWatchesScraper,
-    "ebay.ca": EbayScraper,
+    "ebay.ca": EbayHttpScraper,
     "bijouxeclore.com": BijouxEcloreScraper,
     "kavarjewellers.ca": KavarJewellersScraper,
     "peoplesjewellers.com": PeoplesJewellersScraper,

@@ -9,6 +9,7 @@ from .peoplesjewellers import PeoplesJewellersScraper
 from .creationwatches import CreationWatchesScraper
 from .canadawatchhouse import CanadaWatchHouseScraper
 from .assaleh import AssalehScraper
+from .gembijou import GemBijouHttpScraper
 
 DOMAIN_SCRAPER = {
     "watchit.ca": WatchItScraper,
@@ -22,4 +23,5 @@ DOMAIN_SCRAPER = {
     "creationwatches.com": CreationWatchesScraper,
     "canadawatchhouse.ca": CanadaWatchHouseScraper,
     "assaleh.ca": AssalehScraper,
+    "gembijou.com": GemBijouHttpScraper,
 }

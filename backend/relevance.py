@@ -10,7 +10,7 @@ from typing import List, Set
 ACCESSORY_KEYWORDS = {
     "strap", "band", "bracelet", "replacement", "rubber",
     "leather", "silicone", "nylon", "nato", "link", "links",
-    "buckle", "clasp"
+    "buckle", "clasp", "guard", "guards"
 }
 
 # Generic words that should not heavily influence relevance

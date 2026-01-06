@@ -41,6 +41,38 @@
         <link rel="stylesheet" href="style.css" />
         <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         <link rel="preload" as="image" href="images/watch-loader.gif" />
+
+        <!-- JSON-LD schema -->
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@graph": [
+                    {
+                        "@type": "Organization",
+                        "name": "WatchPrice.ca",
+                        "url": "https://watchprice.ca/",
+                        "areaServed": "CA"
+                    },
+                    {
+                        "@type": "WebSite",
+                        "name": "WatchPrice.ca",
+                        "url": "https://watchprice.ca/",
+                        "description": "Compare watch prices across Canadian retailers and find the best deals.",
+                        "potentialAction": {
+                            "@type": "SearchAction",
+                            "target": "https://watchprice.ca/?q={search_term_string}",
+                            "query-input": "required name=q"
+                        }
+                    },
+                    {
+                        "@type": "WebPage",
+                        "name": "Watch Price Comparison in Canada",
+                        "url": "https://watchprice.ca/",
+                        "description": "A Canadian watch price comparison tool that tracks prices from major retailers."
+                    }
+                ]
+            }
+        </script>
     </head>
     <body>
         <div class="page">
@@ -52,11 +84,11 @@
 
                 <main class="content">
                     <div class="form-wrapper">
-                        <form action="" id="watch-form">
+                        <form action="/" id="watch-form">
                             <label for="model-field">Search for a watch</label>
                             <input
                                 type="text"
-                                name="model-field"
+                                name="q"
                                 id="model-field"
                                 autocomplete="off"
                                 autofocus

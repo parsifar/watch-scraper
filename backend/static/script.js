@@ -20,9 +20,6 @@ const state = {
 
 const BACKEND_ENDPOINT = '/extract-price';
 
-//On Page load
-renderRetailersList();
-
 // Load models.json
 fetch('models.json')
     .then((res) => res.json())
@@ -265,3 +262,16 @@ function updateListOrder() {
         });
     });
 }
+
+function triggerSearchFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const searchTerm = params.get('q');
+    if (searchTerm) {
+        DOM.inputField.value = searchTerm;
+        DOM.form.requestSubmit();
+    }
+}
+
+//On Page load
+renderRetailersList();
+triggerSearchFromUrl();

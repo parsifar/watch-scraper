@@ -22,18 +22,38 @@ class CreationWatchesScraper(BaseScraper):
 
             for el in product_elements:
                 name_el = el.select_one(".txtSec>a p.product-name")
-                price_el = el.select_one(".txtSec h3")
 
-                # remove the <del> tag if it exists
-                if price_el:
-                    del_tag = price_el.find("del")
+                # Price logic
+                price_candidates = []
+
+                # 1. Regular / discounted price (h3)
+                h3 = el.select_one(".txtSec h3")
+
+                if h3:
+                    # Remove original price
+                    del_tag = h3.find("del")
                     if del_tag:
                         del_tag.decompose()
 
-                if name_el and price_el:
+                    price = normalize_price(h3.get_text(strip=True))
+                    if price:
+                        price_candidates.append(price)
+
+                # 2. "With Code" price (h5)
+                h5 = el.select_one(".txtSec h5")
+                if h5:
+                    price = normalize_price(h5.get_text(strip=True))
+                    if price:
+                        price_candidates.append(price)
+
+                # 3. Choose lowest available price
+                if name_el and price_candidates:
                     name = name_el.get_text(strip=True)
-                    price = normalize_price(price_el.get_text(strip=True))
-                    products.append({"name": name, "price": price})
+                    lowest_price = min(price_candidates)
+                    products.append({
+                        "name": name,
+                        "price": lowest_price
+                    })
 
             await browser.close()
 

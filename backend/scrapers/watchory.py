@@ -1,35 +1,67 @@
-from playwright.async_api import async_playwright
+import requests
 from bs4 import BeautifulSoup
 from .base_scraper import BaseScraper
 from .utils import normalize_price
 
 
-class WatchoryScraper(BaseScraper):
+class WatchoryHttpScraper(BaseScraper):
     async def scrape(self, url: str, term: str) -> list[dict]:
         products = []
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            await page.goto(url, wait_until="networkidle")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept-Language": "en-CA,en;q=0.9",
+        }
 
-            content = await page.content()
-            soup = BeautifulSoup(content, "html.parser")
+        resp = requests.get(url, headers=headers, timeout=20)
+        resp.raise_for_status()
 
-            # Example parsing logic: adapt selectors to actual site
-            product_elements = soup.select(
-                "li.product .card-information")  # adjust selector
+        soup = BeautifulSoup(resp.text, "html.parser")
 
-            for el in product_elements:
-                name_el = el.select_one("h3.card__heading a.card-title")
-                price_el = el.select_one(
-                    ".card-price .price__sale .price__last .price-item")
+        product_cards = soup.select("li.product")
 
-                if name_el and price_el:
-                    name = name_el.get_text(strip=True)
-                    price = normalize_price(price_el.get_text(strip=True))
-                    products.append({"name": name, "price": price})
+        for card in product_cards:
+            card_text = card.get_text(" ", strip=True).lower()
 
-            await browser.close()
+            # -------------------------------------------------
+            # Filter out refurbished products
+            # -------------------------------------------------
+            if "refurbished" in card_text:
+                continue
+
+            name_el = card.select_one("h3.card__heading a")
+            if not name_el:
+                continue
+
+            name = name_el.get_text(strip=True)
+
+            # -------------------------------------------------
+            # Price extraction (lowest available price)
+            # -------------------------------------------------
+            price = None
+
+            # Sale price (preferred)
+            sale_price_el = card.select_one(
+                ".price__sale .price-item--sale"
+            )
+            if sale_price_el:
+                price = normalize_price(sale_price_el.get_text(strip=True))
+            else:
+                # Regular price fallback
+                regular_price_el = card.select_one(
+                    ".price__regular .price-item"
+                )
+                if regular_price_el:
+                    price = normalize_price(
+                        regular_price_el.get_text(strip=True)
+                    )
+
+            if price is None:
+                continue
+
+            products.append({
+                "name": name,
+                "price": price,
+            })
 
         return products

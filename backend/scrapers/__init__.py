@@ -1,5 +1,5 @@
 from .watchit import WatchItScraper
-from .watchory import WatchoryScraper
+from .watchory import WatchoryHttpScraper
 from .bigtimewatches import BigTimeScraper
 from .citywatches import CityWatchesScraper
 from .ebay import EbayHttpScraper
@@ -13,7 +13,7 @@ from .gembijou import GemBijouHttpScraper
 
 DOMAIN_SCRAPER = {
     "watchit.ca": WatchItScraper,
-    "watchory.ca": WatchoryScraper,
+    "watchory.ca": WatchoryHttpScraper,
     "bigtimewatches.com": BigTimeScraper,
     "citywatches.ca": CityWatchesScraper,
     "ebay.ca": EbayHttpScraper,

@@ -169,14 +169,51 @@ def is_feature_query(query: str) -> bool:
 # ============================================================
 
 
+WATCH_KEYWORDS = {
+    "analog", "digital", "quartz", "automatic", "chronograph"
+}
+
+ACCESSORY_TRIGGERS = {"for", "fits", "compatible with"}
+
+
 def accessory_penalty(text: str) -> int:
     """
-    Apply a strong negative penalty if listing appears
-    to be an accessory (strap, band, etc.).
+    Apply a negative penalty for accessory listings like straps or bands.
+
+    Logic:
+    1. If an accessory keyword is present:
+        a. AND the text contains a trigger phrase like "for GA-2100" or "fits GA-2100"
+        b. AND it does NOT contain watch-function keywords
+       → High penalty (-15)
+
+    2. If accessory keywords appear but watch keywords are also present
+       → Likely a real watch, ignore accessory keywords (penalty 0)
+
+    3. If accessory keywords appear in ambiguous context
+       → Mild penalty (-5)
     """
     tokens = set(tokenize(normalize(text)))
-    if tokens & ACCESSORY_KEYWORDS:
-        return -15
+    lower_text = normalize(text)
+
+    has_accessory_kw = bool(tokens & ACCESSORY_KEYWORDS)
+    has_watch_kw = bool(tokens & WATCH_KEYWORDS)
+
+    # Quick keep: real watches
+    if has_watch_kw:
+        return 0
+
+    # Detect trigger phrases with model presence
+    for trigger in ACCESSORY_TRIGGERS:
+        if trigger in lower_text:
+            # Likely "strap for GA-2100" → real accessory
+            return -15
+
+    # If accessory keyword exists but no watch keywords and no trigger phrases
+    if has_accessory_kw:
+        # Ambiguous accessory (could be part of model description)
+        return -5
+
+    # Default: no penalty
     return 0
 
 
